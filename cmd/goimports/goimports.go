@@ -17,6 +17,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"runtime/pprof"
 	"strings"
@@ -83,6 +84,21 @@ const (
 	multipleArg
 )
 
+func removeImportSpaces(in []byte) []byte {
+	reg, err := regexp.Compile(`import \((.|\n)+?\)`)
+	if err != nil {
+		return in
+	}
+
+	importsArr := reg.FindAll(in, 1)
+	if len(importsArr) == 0 {
+		return in
+	}
+
+	return bytes.Replace(in, importsArr[0],
+		[]byte(strings.Replace(string(importsArr[0]), "\n\n", "\n", -1)), -1)
+}
+
 func processFile(filename string, in io.Reader, out io.Writer, argType argumentType) error {
 	opt := options
 	if argType == fromStdin {
@@ -104,6 +120,8 @@ func processFile(filename string, in io.Reader, out io.Writer, argType argumentT
 	if err != nil {
 		return err
 	}
+
+	src = removeImportSpaces(src)
 
 	target := filename
 	if *srcdir != "" {
